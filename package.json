@@ -4,11 +4,27 @@
   "description": "Human-driven orchestrator for role-based AI CLIs (claude, codex).",
   "module": "src/index.ts",
   "type": "module",
-  "private": true,
+  "private": false,
+  "license": "MIT",
+  "files": [
+    "src"
+  ],
+  "keywords": [
+    "ai",
+    "cli",
+    "automation",
+    "orchestrator",
+    "codex",
+    "claude"
+  ],
+  "engines": {
+    "bun": ">=1.2"
+  },
   "bin": {
     "orcai": "./src/index.ts"
   },
   "scripts": {
+    "test": "bun test",
     "start": "bun src/index.ts",
     "dev": "bun src/index.ts"
   },
