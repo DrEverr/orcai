@@ -7,7 +7,9 @@
   "private": false,
   "license": "MIT",
   "files": [
-    "src"
+    "bin",
+    "src",
+    "!src/**/*.test.ts"
   ],
   "keywords": [
     "ai",
@@ -21,7 +23,7 @@
     "bun": ">=1.2"
   },
   "bin": {
-    "orcai": "./src/index.ts"
+    "orcai": "bin/orcai"
   },
   "scripts": {
     "test": "bun test",
