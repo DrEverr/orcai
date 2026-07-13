@@ -92,7 +92,7 @@ export async function repl(initialSession?: string): Promise<void> {
     }
     if (!agents.length) {
       log("  " + style.gray("No roles yet. Create your first worker:"));
-      log("  " + style.dim("/agent add coder openai gpt-5.5-codex You are the lead developer") + "\n");
+      log("  " + style.dim("/agent add coder openai gpt-5.5 You are the lead developer") + "\n");
     } else {
       log("  " + style.gray("Start typing a task or use ") + style.dim("/help"));
       log("  " + style.gray("Example: ") + style.dim(`@${agents[0]!.id} improve login validation`) + "\n");
@@ -194,10 +194,17 @@ export async function repl(initialSession?: string): Promise<void> {
 
     const dur = style.gray(`   ${fmtDuration(Date.now() - start)}`);
     if (res.exitCode === 0) log(style.green(`✓ @${agent.id} finished`) + dur);
-    else log(style.yellow(`▲ @${agent.id} exited with code ${res.exitCode}`) + dur);
+    else {
+      const interrupted = res.exitCode === 130 || res.exitCode === 143;
+      log(style.yellow(`▲ @${agent.id} ${interrupted ? "was interrupted" : `exited with code ${res.exitCode}`}`) + dur);
+      if (!res.sessionSaved) {
+        log(style.gray("  No resumable CLI session was recorded for this failed first launch."));
+      }
+    }
 
     if (res.output) {
-      log(style.dim(`  Added ${res.output.length} characters to the backlog`));
+      const verb = res.autoCaptured ? "Recorded" : "Added";
+      log(style.dim(`  ${verb} ${res.output.length} characters to the backlog`));
       log(style.gray("  /last show result   ·   /pass <role> pass it on"));
     } else {
       log(style.yellow("  The role did not add anything to backlog.md — use /backlog or /note"));

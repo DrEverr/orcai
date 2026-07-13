@@ -4,7 +4,7 @@ import type { Agent } from "./types.ts";
 
 test("YAML roundtrip preserves roles, including tricky backstory", () => {
   const agents: Agent[] = [
-    makeAgent("coder", "openai", "gpt-5.5-codex", "You are the lead developer"),
+    makeAgent("coder", "openai", "gpt-5.5", "You are the lead developer"),
     makeAgent("reviewer", "anthropic", "sonnet", "Review: find bugs, risks; then decide."),
   ];
   const back = deserializeAgents(serializeAgents(agents));
@@ -12,14 +12,14 @@ test("YAML roundtrip preserves roles, including tricky backstory", () => {
 });
 
 test("serializeAgents emits editable block YAML", () => {
-  const yaml = serializeAgents([makeAgent("coder", "openai", "gpt-5.5-codex", "hi")]);
+  const yaml = serializeAgents([makeAgent("coder", "openai", "gpt-5.5", "hi")]);
   expect(yaml).toContain("- id: coder");
   expect(yaml).toContain("provider: openai");
   expect(yaml).toContain("cli: codex"); // derived from provider
 });
 
 test("deserializeAgents derives cli from provider when omitted", () => {
-  const agents = deserializeAgents(`- id: coder\n  provider: openai\n  model: gpt-5.5-codex\n`);
+  const agents = deserializeAgents(`- id: coder\n  provider: openai\n  model: gpt-5.5\n`);
   expect(agents).toHaveLength(1);
   expect(agents[0]!.cli).toBe("codex");
   expect(agents[0]!.name).toBe("coder"); // defaults to id
@@ -28,6 +28,10 @@ test("deserializeAgents derives cli from provider when omitted", () => {
 test("deserializeAgents skips invalid entries", () => {
   const agents = deserializeAgents(`- id: ok\n  provider: openai\n  model: m\n- provider: openai\n  model: m\n`);
   expect(agents.map((a) => a.id)).toEqual(["ok"]);
+});
+
+test("deserializeAgents reports malformed YAML clearly", () => {
+  expect(() => deserializeAgents("- id: [")).toThrow(/Invalid agents\.yaml/);
 });
 
 test("default agents provide the starter roles", () => {

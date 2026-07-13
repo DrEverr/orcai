@@ -83,9 +83,9 @@ Describe roles in a human-friendly format before showing JSON:
 Starter team "storefront-web"
 
 1. manager   plans and protects the goal       Claude / opus
-2. coder     implements and tests              Codex / gpt-5.5-codex
-3. tester    verifies behavior                 Codex / gpt-5.5-codex
-4. devops    handles CI and releases           Codex / gpt-5.5-codex
+2. coder     implements and tests              Codex / gpt-5.5
+3. tester    verifies behavior                 Codex / gpt-5.4
+4. devops    handles CI and releases           Codex / gpt-5.3-codex-spark
 5. designer  shapes product experience         Claude / sonnet
 
 Flow: manager → coder → tester → coder (if fixes are needed)
@@ -101,7 +101,7 @@ Each role in `~/.orcai/agents.yaml` has this shape (block YAML, hand-editable):
   name: Lead Developer
   provider: openai
   cli: codex
-  model: gpt-5.5-codex
+  model: gpt-5.5
   backstory: "Implement agreed tasks, follow the repository instructions, and run tests after making changes."
 ```
 

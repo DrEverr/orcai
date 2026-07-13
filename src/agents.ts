@@ -1,7 +1,7 @@
-import { AGENTS_FILE } from "./paths.ts";
-import type { Agent, CliKind, Provider } from "./types.ts";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
+import { AGENTS_FILE } from "./paths.ts";
+import type { Agent, CliKind, Provider } from "./types.ts";
 
 const ID_RE = /^[a-zA-Z0-9_-]+$/;
 const YAML = (Bun as unknown as { YAML: { parse(s: string): unknown } }).YAML;
@@ -27,7 +27,7 @@ export const DEFAULT_AGENTS: Agent[] = [
     name: "Developer",
     provider: "openai",
     cli: "codex",
-    model: "gpt-5.5-codex",
+    model: "gpt-5.5",
     backstory:
       "Implement agreed tasks, follow the repository instructions, write concise testable code, and run tests after changes.",
   },
@@ -36,7 +36,7 @@ export const DEFAULT_AGENTS: Agent[] = [
     name: "Tester",
     provider: "openai",
     cli: "codex",
-    model: "gpt-5.5-codex",
+    model: "gpt-5.4",
     backstory:
       "Verify behavior, reproduce bugs, add or run focused tests, and report clear failures with exact commands and evidence.",
   },
@@ -45,7 +45,7 @@ export const DEFAULT_AGENTS: Agent[] = [
     name: "DevOps",
     provider: "openai",
     cli: "codex",
-    model: "gpt-5.5-codex",
+    model: "gpt-5.3-codex-spark",
     backstory:
       "Handle builds, releases, CI, deployment, environment checks, and operational risks while keeping changes auditable.",
   },
@@ -116,7 +116,13 @@ function normalize(raw: unknown): Agent | null {
 }
 
 export function deserializeAgents(text: string): Agent[] {
-  const parsed = YAML.parse(text);
+  let parsed: unknown;
+  try {
+    parsed = YAML.parse(text);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`Invalid agents.yaml: ${message}`);
+  }
   if (!Array.isArray(parsed)) return [];
   return parsed.map(normalize).filter((a): a is Agent => a !== null);
 }
@@ -126,7 +132,14 @@ export function deserializeAgents(text: string): Agent[] {
 /** Load roles from ~/.orcai/agents.yaml, seeding starter roles on first run. */
 export async function loadAgents(): Promise<Agent[]> {
   const yaml = Bun.file(AGENTS_FILE);
-  if (await yaml.exists()) return deserializeAgents(await yaml.text());
+  if (await yaml.exists()) {
+    try {
+      return deserializeAgents(await yaml.text());
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Could not load ${AGENTS_FILE}: ${message}`);
+    }
+  }
   const agents = defaultAgents();
   await saveAgents(agents);
   return agents;

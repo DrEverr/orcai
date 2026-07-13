@@ -1,7 +1,7 @@
 import { getAdapter } from "./adapters/index.ts";
 import { sessionDir } from "./paths.ts";
 import { roleState, saveSession } from "./session.ts";
-import { backlogMarker, backlogSince, appendTranscript } from "./backlog.ts";
+import { appendBacklog, backlogMarker, backlogSince, appendTranscript } from "./backlog.ts";
 import type { Agent, Config, SessionData } from "./types.ts";
 
 function footer(backlogFile: string): string {
@@ -16,6 +16,31 @@ function footer(backlogFile: string): string {
 export interface DelegateResult {
   output: string;
   exitCode: number;
+  sessionSaved: boolean;
+  autoCaptured: boolean;
+}
+
+function missingBacklogEntry(agent: Agent, exitCode: number, sessionSaved: boolean): string {
+  const interrupted = exitCode === 130 || exitCode === 143;
+  if (exitCode === 0) {
+    return [
+      `@${agent.id} returned control to orcai without adding a backlog entry.`,
+      "",
+      "No role response was captured automatically because the native CLI ran interactively.",
+      sessionSaved
+        ? "The CLI session was saved and can be resumed; ask the role to summarize its completed work if needed."
+        : "No resumable CLI session was recorded.",
+    ].join("\n");
+  }
+
+  return [
+    `@${agent.id} did not add a backlog entry before the CLI ${interrupted ? "was interrupted" : `exited with code ${exitCode}`}.`,
+    "",
+    "No role response was captured automatically because the native CLI ran interactively.",
+    sessionSaved
+      ? "The previous CLI session remains recorded for a later resume."
+      : "No resumable CLI session was recorded for this failed first launch.",
+  ].join("\n");
 }
 
 /**
@@ -61,23 +86,36 @@ export async function delegate(
     stdio: ["inherit", "inherit", "inherit"],
   });
   const exitCode = await proc.exited;
+  const succeeded = exitCode === 0;
 
   // Capture the session id for CLIs that generate their own (codex).
-  if (isNew && !adapter.preassignsSessionId && adapter.captureSessionId) {
+  if (succeeded && isNew && !adapter.preassignsSessionId && adapter.captureSessionId) {
     sessionId = await adapter.captureSessionId(snapshot, startedAt, session.workdir);
   }
-  state.cliSessionId = sessionId;
-  state.lastUsedAt = new Date().toISOString();
 
-  const output = await backlogSince(session.name, marker);
+  let output = await backlogSince(session.name, marker);
+  let autoCaptured = false;
+  const sessionSaved = !isNew || (succeeded && sessionId !== null);
+  if (!output) {
+    const fallback = missingBacklogEntry(agent, exitCode, sessionSaved);
+    await appendBacklog(session.name, "orcai", fallback);
+    output = await backlogSince(session.name, marker);
+    autoCaptured = true;
+  }
   if (output) {
     session.lastOutput = { roleId: agent.id, text: output, at: new Date().toISOString() };
+  }
+  if (sessionSaved) {
+    state.cliSessionId = sessionId;
+    state.lastUsedAt = new Date().toISOString();
   }
   await saveSession(session);
   await appendTranscript(
     session.name,
-    `← [${agent.id}] finished (exit ${exitCode}), ${output ? output.length + " chars in backlog" : "no entry"}`,
+    `← [${agent.id}] finished (exit ${exitCode}${sessionSaved ? "" : ", session not saved"}), ${
+      output ? output.length + " chars in backlog" : "no entry"
+    }`,
   );
 
-  return { output, exitCode };
+  return { output, exitCode, sessionSaved, autoCaptured };
 }
