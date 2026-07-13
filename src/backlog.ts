@@ -1,35 +1,38 @@
+import { mkdir } from "node:fs/promises";
+import { dirname } from "node:path";
 import { backlogPath, transcriptFile } from "./paths.ts";
 
 /**
- * The backlog is the shared channel between roles and lives in the working
- * directory, so each sub-CLI reads/writes it natively as ./backlog.md.
+ * The backlog is the shared channel between roles and is scoped to one orcai
+ * session, while sub-CLIs still run in the project working directory.
  */
-export async function backlogMarker(workdir: string): Promise<number> {
-  const file = Bun.file(backlogPath(workdir));
+export async function backlogMarker(sessionName: string): Promise<number> {
+  const file = Bun.file(backlogPath(sessionName));
   if (!(await file.exists())) return 0;
   return (await file.text()).length;
 }
 
 /** Return everything appended to the backlog since `marker`. */
-export async function backlogSince(workdir: string, marker: number): Promise<string> {
-  const file = Bun.file(backlogPath(workdir));
+export async function backlogSince(sessionName: string, marker: number): Promise<string> {
+  const file = Bun.file(backlogPath(sessionName));
   if (!(await file.exists())) return "";
   return (await file.text()).slice(marker).trim();
 }
 
-export async function readBacklog(workdir: string): Promise<string> {
-  const file = Bun.file(backlogPath(workdir));
+export async function readBacklog(sessionName: string): Promise<string> {
+  const file = Bun.file(backlogPath(sessionName));
   return (await file.exists()) ? await file.text() : "";
 }
 
 async function append(path: string, content: string): Promise<void> {
   const existing = (await Bun.file(path).exists()) ? await Bun.file(path).text() : "";
+  await mkdir(dirname(path), { recursive: true });
   await Bun.write(path, existing + content);
 }
 
 /** Append a titled entry to the shared backlog. */
-export async function appendBacklog(workdir: string, author: string, body: string): Promise<void> {
-  await append(backlogPath(workdir), `\n## [${author}] ${new Date().toISOString()}\n\n${body}\n`);
+export async function appendBacklog(sessionName: string, author: string, body: string): Promise<void> {
+  await append(backlogPath(sessionName), `\n## [${author}] ${new Date().toISOString()}\n\n${body}\n`);
 }
 
 /** Append a line to the orchestrator transcript (kept in the session dir). */

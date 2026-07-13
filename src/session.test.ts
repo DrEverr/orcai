@@ -72,6 +72,7 @@ test("createStartupSession creates a fresh UUID session for the current director
   for (const session of sessions) {
     expect(await Bun.file(join(home, ".orcai", "sessions", session.name, "session.json")).exists()).toBe(true);
     expect(await Bun.file(join(home, ".orcai", "sessions", session.name, "transcript.md")).exists()).toBe(true);
+    expect(await Bun.file(join(home, ".orcai", "sessions", session.name, "backlog.md")).exists()).toBe(true);
   }
-  expect(await Bun.file(join(workdir, "backlog.md")).exists()).toBe(true);
+  expect(await Bun.file(join(workdir, "backlog.md")).exists()).toBe(false);
 });

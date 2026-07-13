@@ -2,7 +2,7 @@
 
 `orcai` is a human-driven AI role orchestrator for the terminal. It lets you move work
 between Codex and Claude Code while preserving a separate native conversation for every role
-and a shared `backlog.md` for the whole team.
+and a session-scoped `backlog.md` for the whole team.
 
 ![orcai dashboard and delegation flow](docs/orcai-session.svg)
 
@@ -50,7 +50,7 @@ The configuration and session data are stored under:
 ~/.orcai/
 ├── config.json       paths to codex and claude
 ├── agents.yaml       user-created roles, models, and instructions (hand-editable)
-└── sessions/         session state and transcripts
+└── sessions/         session state, transcripts, and per-session backlogs
 ```
 
 There are no built-in roles. Create only the workers your project needs. From the REPL:
@@ -62,8 +62,9 @@ There are no built-in roles. Create only the workers your project needs. From th
 ```
 
 The provider determines the native CLI: `anthropic` uses Claude Code and `openai` uses Codex.
-The roles are saved to `agents.yaml`. The shared `backlog.md` lives in the selected project
-directory so every role can read and update it directly.
+The roles are saved to `agents.yaml`. Each session has its own shared backlog at
+`~/.orcai/sessions/<session>/backlog.md`; roles still run in the selected project directory
+and receive the session directory as an additional writable directory.
 
 If a CLI is not available in `PATH`, put its absolute path in `config.json`:
 

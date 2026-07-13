@@ -78,8 +78,8 @@ export async function createSession(name: string, workdir: string): Promise<Sess
     transcriptFile(name),
     `# Transcript — session ${name}\n\nCreated ${data.createdAt} (workdir: ${absWorkdir})\n\n`,
   );
-  // Seed the shared backlog in the workdir only if one isn't already there.
-  const backlog = backlogPath(absWorkdir);
+  // Seed a per-session backlog. Project workdirs can have many orcai sessions.
+  const backlog = backlogPath(name);
   if (!(await Bun.file(backlog).exists())) {
     await Bun.write(backlog, `# Backlog — session ${name}\n\n`);
   }

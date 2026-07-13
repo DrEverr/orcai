@@ -329,7 +329,7 @@ export async function repl(initialSession?: string): Promise<void> {
       case "/note": {
         if (!session) return (log(style.yellow("No active session.")), true);
         if (!arg) return (log(style.gray("Usage: /note <text>")), true);
-        await appendBacklog(session.workdir, "orchestrator", arg);
+        await appendBacklog(session.name, "orchestrator", arg);
         await appendTranscript(session.name, `note: ${arg.replace(/\s+/g, " ").slice(0, 120)}`);
         log(style.green("✓ Added to backlog.md"));
         return true;
@@ -337,7 +337,7 @@ export async function repl(initialSession?: string): Promise<void> {
 
       case "/backlog": {
         if (!session) return (log(style.yellow("No active session.")), true);
-        log("\n" + (await readBacklog(session.workdir)).trimEnd() + "\n");
+        log("\n" + (await readBacklog(session.name)).trimEnd() + "\n");
         return true;
       }
 

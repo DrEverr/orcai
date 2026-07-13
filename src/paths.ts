@@ -17,12 +17,9 @@ export function transcriptFile(name: string): string {
   return join(sessionDir(name), "transcript.md");
 }
 
-/**
- * The shared backlog lives in the working directory, so the sub-CLIs (claude,
- * codex) can read/write it natively via their own `./backlog.md`.
- */
-export function backlogPath(workdir: string): string {
-  return join(workdir, "backlog.md");
+/** The shared team backlog is scoped to a single orcai session. */
+export function backlogPath(name: string): string {
+  return join(sessionDir(name), "backlog.md");
 }
 
 /** Guard against path traversal: resolved session dir must stay under SESSIONS_DIR. */

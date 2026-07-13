@@ -4,10 +4,14 @@ import { roleState, saveSession } from "./session.ts";
 import { backlogMarker, backlogSince, appendTranscript } from "./backlog.ts";
 import type { Agent, Config, SessionData } from "./types.ts";
 
-const FOOTER =
-  "\n\n---\nThe collaboration context and history are in ./backlog.md in the working directory. " +
-  "When you finish, append a concise summary of your work to backlog.md under the heading " +
-  '"## [<your-role>]" so the next roles can continue.';
+function footer(backlogFile: string): string {
+  return (
+    "\n\n---\nThe collaboration context and history are in this session backlog: " +
+    backlogFile +
+    ". When you finish, append a concise summary of your work to that file under the heading " +
+    '"## [<your-role>]" so the next roles can continue.'
+  );
+}
 
 export interface DelegateResult {
   output: string;
@@ -27,6 +31,8 @@ export async function delegate(
   const adapter = getAdapter(agent.cli);
   const state = roleState(session, agent);
   const isNew = state.cliSessionId == null;
+  const dir = sessionDir(session.name);
+  const backlogFile = `${dir}/backlog.md`;
 
   let sessionId = state.cliSessionId;
   if (isNew && adapter.preassignsSessionId) sessionId = crypto.randomUUID();
@@ -37,13 +43,12 @@ export async function delegate(
     sessionId,
     isNew,
     backstory: agent.backstory,
-    sessionDir: sessionDir(session.name),
-    prompt: userText + FOOTER,
+    sessionDir: dir,
+    prompt: userText + footer(backlogFile),
     extraFlags: agent.extraFlags ?? [],
   });
 
-  // The shared backlog lives in the workdir, where the sub-CLI runs.
-  const marker = await backlogMarker(session.workdir);
+  const marker = await backlogMarker(session.name);
   const snapshot = isNew && adapter.snapshot ? await adapter.snapshot() : undefined;
   const startedAt = Date.now();
   await appendTranscript(
@@ -64,7 +69,7 @@ export async function delegate(
   state.cliSessionId = sessionId;
   state.lastUsedAt = new Date().toISOString();
 
-  const output = await backlogSince(session.workdir, marker);
+  const output = await backlogSince(session.name, marker);
   if (output) {
     session.lastOutput = { roleId: agent.id, text: output, at: new Date().toISOString() };
   }

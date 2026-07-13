@@ -1,4 +1,6 @@
 import { expect, test } from "bun:test";
+import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { join } from "node:path";
 import { claudeAdapter } from "./claude.ts";
 import { codexAdapter } from "./codex.ts";
 
@@ -33,16 +35,64 @@ test("claude preassigns its own session id", () => {
 
 test("codex new: -m + backstory prepended to prompt", () => {
   const args = codexAdapter.buildArgs({ ...base, sessionId: null, isNew: true });
-  expect(args).toEqual(["-m", "m", "--", "BS\n\n---\n\nP"]);
+  expect(args).toEqual(["-m", "m", "--add-dir", "/s", "--", "BS\n\n---\n\nP"]);
 });
 
 test("codex resume: resume subcommand passes -m so model changes apply", () => {
   const args = codexAdapter.buildArgs({ ...base, sessionId: "u9", isNew: false });
-  expect(args).toEqual(["resume", "-m", "m", "u9", "--", "P"]);
+  expect(args).toEqual(["resume", "-m", "m", "u9", "--add-dir", "/s", "--", "P"]);
 });
 
 test("codex must snapshot + capture its own session id", () => {
   expect(codexAdapter.preassignsSessionId).toBe(false);
   expect(typeof codexAdapter.snapshot).toBe("function");
   expect(typeof codexAdapter.captureSessionId).toBe("function");
+});
+
+test("codex captures a new session id from rollout files when the index is stale", async () => {
+  const home = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "orcai-codex-home-"));
+  const workdir = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "orcai-codex-workdir-"));
+  try {
+    const sessionsDir = join(home, ".codex", "sessions", "2026", "07", "13");
+    await mkdir(sessionsDir, { recursive: true });
+    await Bun.write(
+      join(sessionsDir, "rollout-2026-07-13T12-00-00-old-session.jsonl"),
+      JSON.stringify({
+        timestamp: "2026-07-13T12:00:00.000Z",
+        type: "session_meta",
+        payload: { session_id: "old-session", timestamp: "2026-07-13T12:00:00.000Z", cwd: workdir },
+      }) + "\n",
+    );
+
+    const adapterModule = new URL("./codex.ts", import.meta.url).href;
+    const script = `
+      const { codexAdapter } = await import(${JSON.stringify(adapterModule)});
+      const snapshot = await codexAdapter.snapshot();
+      await Bun.write(${JSON.stringify(join(sessionsDir, "rollout-2026-07-13T12-05-00-new-session.jsonl"))}, JSON.stringify({
+        timestamp: "2026-07-13T12:05:00.000Z",
+        type: "session_meta",
+        payload: { session_id: "new-session", timestamp: "2026-07-13T12:05:00.000Z", cwd: ${JSON.stringify(workdir)} },
+      }) + "\\n");
+      const id = await codexAdapter.captureSessionId(snapshot, Date.parse("2026-07-13T12:04:58.000Z"), ${JSON.stringify(workdir)});
+      console.log(id);
+    `;
+    const proc = Bun.spawn({
+      cmd: [process.execPath, "--eval", script],
+      env: { ...process.env, HOME: home },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+
+    expect(stderr).toBe("");
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toBe("new-session");
+  } finally {
+    await rm(home, { recursive: true, force: true });
+    await rm(workdir, { recursive: true, force: true });
+  }
 });

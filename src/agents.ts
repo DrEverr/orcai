@@ -97,6 +97,6 @@ export function makeAgent(id: string, provider: Provider, model: string, backsto
     model,
     backstory:
       backstory ||
-      `You are the "${id}" role. Do your part of the task and append a concise summary to backlog.md.`,
+      `You are the "${id}" role. Do your part of the task and append a concise summary to the session backlog.md.`,
   };
 }

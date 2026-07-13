@@ -4,6 +4,7 @@ import type { CliAdapter } from "./types.ts";
 interface IndexEntry {
   id: string;
   at: number;
+  cwd: string | null;
 }
 
 async function readIndex(): Promise<IndexEntry[]> {
@@ -14,7 +15,7 @@ async function readIndex(): Promise<IndexEntry[]> {
     if (!line.trim()) continue;
     try {
       const e = JSON.parse(line) as { id?: string; updated_at?: string };
-      if (e.id && e.updated_at) out.push({ id: e.id, at: Date.parse(e.updated_at) });
+      if (e.id && e.updated_at) out.push({ id: e.id, at: Date.parse(e.updated_at), cwd: null });
     } catch {
       // ignore malformed lines
     }
@@ -22,18 +23,25 @@ async function readIndex(): Promise<IndexEntry[]> {
   return out;
 }
 
-/** Best-effort: read the `cwd` recorded in a codex session's rollout file. */
-async function sessionCwd(id: string): Promise<string | null> {
+async function readRollouts(): Promise<IndexEntry[]> {
+  const out: IndexEntry[] = [];
   try {
-    const glob = new Bun.Glob(`**/*${id}*`);
+    const glob = new Bun.Glob("**/rollout-*.jsonl");
     for await (const f of glob.scan({ cwd: CODEX_SESSIONS_DIR, absolute: true })) {
-      const text = await Bun.file(f).text();
+      const text = await Bun.file(f).slice(0, 64 * 1024).text();
       for (const line of text.split("\n").slice(0, 15)) {
         if (!line.trim()) continue;
         try {
           const o = JSON.parse(line) as Record<string, unknown>;
-          const cwd = (o.cwd ?? (o.payload as Record<string, unknown>)?.cwd ?? (o.git as Record<string, unknown>)?.cwd);
-          if (typeof cwd === "string") return cwd;
+          const payload = o.payload as Record<string, unknown> | undefined;
+          const id = payload?.session_id ?? payload?.id ?? o.session_id ?? o.id;
+          const cwd = payload?.cwd ?? o.cwd;
+          const timestamp = payload?.timestamp ?? o.timestamp;
+          if (typeof id === "string" && typeof timestamp === "string") {
+            const at = Date.parse(timestamp);
+            if (!Number.isNaN(at)) out.push({ id, at, cwd: typeof cwd === "string" ? cwd : null });
+          }
+          break;
         } catch {
           // keep scanning
         }
@@ -42,7 +50,17 @@ async function sessionCwd(id: string): Promise<string | null> {
   } catch {
     // globbing/reading is best-effort only
   }
-  return null;
+  return out;
+}
+
+async function readSessions(): Promise<IndexEntry[]> {
+  const byId = new Map<string, IndexEntry>();
+  for (const entry of await readIndex()) byId.set(entry.id, entry);
+  for (const entry of await readRollouts()) {
+    const current = byId.get(entry.id);
+    if (!current || entry.at > current.at || current.cwd === null) byId.set(entry.id, entry);
+  }
+  return [...byId.values()];
 }
 
 /**
@@ -57,32 +75,31 @@ async function sessionCwd(id: string): Promise<string | null> {
 export const codexAdapter: CliAdapter = {
   preassignsSessionId: false,
 
-  buildArgs({ model, sessionId, isNew, backstory, prompt, extraFlags }) {
+  buildArgs({ model, sessionId, isNew, backstory, sessionDir, prompt, extraFlags }) {
     if (isNew) {
       const seeded = `${backstory}\n\n---\n\n${prompt}`;
-      return ["-m", model, ...extraFlags, "--", seeded];
+      return ["-m", model, "--add-dir", sessionDir, ...extraFlags, "--", seeded];
     }
     // `codex resume` accepts -m, so a changed model in agents.yaml still applies.
-    return ["resume", "-m", model, sessionId!, ...extraFlags, "--", prompt];
+    return ["resume", "-m", model, sessionId!, "--add-dir", sessionDir, ...extraFlags, "--", prompt];
   },
 
   async snapshot() {
-    return new Set((await readIndex()).map((e) => e.id));
+    return new Set((await readSessions()).map((e) => e.id));
   },
 
   async captureSessionId(snapshot, startedAtMs, cwd) {
     const known = snapshot instanceof Set ? (snapshot as Set<string>) : new Set<string>();
     // Only sessions that did not exist before this launch, newest first.
-    const candidates = (await readIndex())
+    const candidates = (await readSessions())
       .filter((e) => !known.has(e.id) && e.at >= startedAtMs - 5000)
       .sort((a, b) => b.at - a.at);
     if (!candidates.length) return null;
 
     let firstUnknownCwd: string | null = null;
     for (const c of candidates) {
-      const sc = await sessionCwd(c.id);
-      if (sc === cwd) return c.id; // strong match
-      if (sc === null && firstUnknownCwd === null) firstUnknownCwd = c.id;
+      if (c.cwd === cwd) return c.id; // strong match
+      if (c.cwd === null && firstUnknownCwd === null) firstUnknownCwd = c.id;
     }
     // Prefer a session with an unresolvable cwd over one that clearly belongs
     // elsewhere; fall back to the newest new session.
