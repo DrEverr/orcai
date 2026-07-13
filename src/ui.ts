@@ -43,6 +43,12 @@ export function card(
   rows: { left: string; right?: string }[],
   width = Math.min(termWidth(), 68),
 ): string {
+  const minTitleWidth = visibleLength(`╭─ ${title} `) + 1;
+  const minRowWidth = Math.max(
+    0,
+    ...rows.map(({ left, right = "" }) => visibleLength(left) + visibleLength(right) + 5),
+  );
+  width = Math.max(width, minTitleWidth, minRowWidth);
   const textArea = width - 4;
   const header = `╭─ ${style.bold(title)} `;
   const top = header + "─".repeat(Math.max(0, width - visibleLength(header) - 1)) + "╮";

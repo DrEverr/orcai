@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+  card,
   fmtDuration,
   padEndVisible,
   relativeTime,
@@ -39,4 +40,19 @@ test("table aligns columns", () => {
   // both data rows start their 2nd column at the same offset
   const col2 = (line: string) => line.indexOf("x") >= 0 ? line.indexOf("x") : line.indexOf("y");
   expect(col2(lines[1]!)).toBe(col2(lines[2]!));
+});
+
+test("card expands frame to fit long session and path values", () => {
+  const out = card("orcai 0.1.0", [
+    {
+      left: "Session   123e4567-e89b-12d3-a456-426614174000",
+      right: "/Users/stas/Development/orcai/packages/a-very-long-project-path",
+    },
+    { left: "Roles     3", right: "active: 2" },
+  ], 40);
+  const lines = out.split("\n");
+  const widths = lines.map(visibleLength);
+
+  expect(new Set(widths).size).toBe(1);
+  expect(widths[0]).toBeGreaterThan(40);
 });
