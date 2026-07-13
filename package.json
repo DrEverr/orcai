@@ -1,0 +1,21 @@
+{
+  "name": "orcai",
+  "version": "0.1.0",
+  "description": "Human-driven orchestrator for role-based AI CLIs (claude, codex).",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "orcai": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "bun src/index.ts",
+    "dev": "bun src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

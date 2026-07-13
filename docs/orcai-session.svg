@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760" role="img" aria-labelledby="title desc">
+  <title id="title">orcai interactive terminal dashboard</title>
+  <desc id="desc">The orcai dashboard, active-role prompt, direct role delegation, and completion status.</desc>
+
+  <rect width="1400" height="760" rx="18" fill="#09090b"/>
+  <rect x="1" y="1" width="1398" height="758" rx="17" fill="none" stroke="#3f3f46" stroke-width="2"/>
+  <rect x="1" y="1" width="1398" height="54" rx="17" fill="#111113"/>
+  <path d="M1 38 Q1 54 18 54 H1382 Q1399 54 1399 38" fill="#111113"/>
+  <circle cx="30" cy="27" r="7" fill="#ef4444"/>
+  <circle cx="54" cy="27" r="7" fill="#eab308"/>
+  <circle cx="78" cy="27" r="7" fill="#22c55e"/>
+  <text x="700" y="34" text-anchor="middle" fill="#71717a" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">orcai — demo</text>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20">
+    <rect x="34" y="78" width="966" height="138" rx="6" fill="none" stroke="#a1a1aa" stroke-width="2"/>
+    <rect x="58" y="68" width="190" height="28" fill="#09090b"/>
+    <text x="72" y="101" fill="#fafafa" font-weight="700">orcai 0.1.0</text>
+
+    <text x="58" y="139" fill="#71717a">Session</text>
+    <text x="164" y="139" fill="#fafafa" font-weight="700">demo</text>
+    <text x="970" y="139" text-anchor="end" fill="#71717a">~/Development/storefront</text>
+
+    <text x="58" y="177" fill="#71717a">Roles</text>
+    <text x="164" y="177" fill="#d4d4d8">4</text>
+    <text x="970" y="177" text-anchor="end" fill="#71717a">active: 2</text>
+
+    <text x="58" y="268" fill="#71717a">Latest activity</text>
+    <text x="58" y="307" fill="#fafafa" font-weight="700">@reviewer</text>
+    <text x="184" y="307" fill="#d4d4d8">Found two edge cases in session handling</text>
+    <text x="687" y="307" fill="#71717a">4 min</text>
+
+    <text x="58" y="363" fill="#a1a1aa">Start typing a task or use</text>
+    <text x="391" y="363" fill="#d4d4d8">/help</text>
+    <text x="58" y="400" fill="#71717a">Example:</text>
+    <text x="170" y="400" fill="#a1a1aa">@coder improve login validation</text>
+
+    <line x1="34" y1="441" x2="1366" y2="441" stroke="#27272a"/>
+
+    <text x="34" y="486" fill="#22d3ee" font-weight="700">@manager</text>
+    <text x="154" y="486" fill="#71717a">claude/opus</text>
+    <text x="310" y="486" fill="#71717a">›</text>
+    <text x="342" y="486" fill="#fafafa">Create a safe implementation plan for authentication</text>
+
+    <text x="34" y="542" fill="#22d3ee">● Starting @manager</text>
+    <text x="58" y="577" fill="#71717a">claude · opus · resuming session</text>
+
+    <text x="34" y="633" fill="#22c55e">✓ @manager finished</text>
+    <text x="281" y="633" fill="#71717a">00:43</text>
+    <text x="58" y="668" fill="#a1a1aa">Added 1,284 characters to the backlog</text>
+    <text x="58" y="703" fill="#71717a">/last show result   ·   /pass &lt;role&gt; pass it on</text>
+
+    <line x1="34" y1="726" x2="1366" y2="726" stroke="#27272a"/>
+    <text x="34" y="750" fill="#22d3ee" font-size="16">@manager</text>
+    <text x="130" y="750" fill="#71717a" font-size="16">claude/opus ›</text>
+    <text x="1366" y="750" text-anchor="end" fill="#52525b" font-size="15">Shift+Tab: role · Tab: complete</text>
+  </g>
+</svg>

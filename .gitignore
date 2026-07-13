@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Bun and TypeScript caches
+.bun/
+*.tsbuildinfo
+
+# Build and test output
+dist/
+build/
+coverage/
+
+# Runtime-generated project state
+backlog.md
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
