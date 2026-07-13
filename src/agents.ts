@@ -1,5 +1,7 @@
 import { AGENTS_FILE } from "./paths.ts";
 import type { Agent, CliKind, Provider } from "./types.ts";
+import { mkdir } from "node:fs/promises";
+import { dirname } from "node:path";
 
 const ID_RE = /^[a-zA-Z0-9_-]+$/;
 const YAML = (Bun as unknown as { YAML: { parse(s: string): unknown } }).YAML;
@@ -9,6 +11,61 @@ export const PROVIDER_CLI: Record<Provider, CliKind> = {
   anthropic: "claude",
   openai: "codex",
 };
+
+export const DEFAULT_AGENTS: Agent[] = [
+  {
+    id: "manager",
+    name: "Manager",
+    provider: "anthropic",
+    cli: "claude",
+    model: "opus",
+    backstory:
+      "Organize the goal, keep the shared backlog clear, choose the next small task, and decide which role should continue.",
+  },
+  {
+    id: "coder",
+    name: "Developer",
+    provider: "openai",
+    cli: "codex",
+    model: "gpt-5.5-codex",
+    backstory:
+      "Implement agreed tasks, follow the repository instructions, write concise testable code, and run tests after changes.",
+  },
+  {
+    id: "tester",
+    name: "Tester",
+    provider: "openai",
+    cli: "codex",
+    model: "gpt-5.5-codex",
+    backstory:
+      "Verify behavior, reproduce bugs, add or run focused tests, and report clear failures with exact commands and evidence.",
+  },
+  {
+    id: "devops",
+    name: "DevOps",
+    provider: "openai",
+    cli: "codex",
+    model: "gpt-5.5-codex",
+    backstory:
+      "Handle builds, releases, CI, deployment, environment checks, and operational risks while keeping changes auditable.",
+  },
+  {
+    id: "designer",
+    name: "Designer",
+    provider: "anthropic",
+    cli: "claude",
+    model: "sonnet",
+    backstory:
+      "Shape user-facing flows, information architecture, copy, and visual direction with practical implementation constraints in mind.",
+  },
+];
+
+function defaultAgents(): Agent[] {
+  return DEFAULT_AGENTS.map((a) => ({
+    ...a,
+    extraFlags: a.extraFlags ? [...a.extraFlags] : undefined,
+  }));
+}
 
 export function isProvider(p: string): p is Provider {
   return p === "anthropic" || p === "openai";
@@ -66,17 +123,17 @@ export function deserializeAgents(text: string): Agent[] {
 
 // ---- load / save -----------------------------------------------------------
 
-/**
- * Load the user-defined roles from ~/.orcai/agents.yaml. There are no built-in
- * defaults: the user creates workers with `/agent add` or by editing the YAML.
- */
+/** Load roles from ~/.orcai/agents.yaml, seeding starter roles on first run. */
 export async function loadAgents(): Promise<Agent[]> {
   const yaml = Bun.file(AGENTS_FILE);
   if (await yaml.exists()) return deserializeAgents(await yaml.text());
-  return [];
+  const agents = defaultAgents();
+  await saveAgents(agents);
+  return agents;
 }
 
 export async function saveAgents(agents: Agent[]): Promise<void> {
+  await mkdir(dirname(AGENTS_FILE), { recursive: true });
   await Bun.write(AGENTS_FILE, serializeAgents(agents));
 }
 

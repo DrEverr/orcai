@@ -20,7 +20,7 @@ The assistant will:
 
 1. Ask which project and AI CLIs you want to use.
 2. Check Bun, Codex, Claude Code, and the project directory.
-3. Propose a small, readable team of roles.
+3. Review or adjust the starter team of roles.
 4. Show the configuration before saving anything.
 5. Give you one command to start your first session.
 
@@ -49,20 +49,23 @@ The configuration and session data are stored under:
 ```text
 ~/.orcai/
 ├── config.json       paths to codex and claude
-├── agents.yaml       user-created roles, models, and instructions (hand-editable)
+├── agents.yaml       starter roles, models, and instructions (hand-editable)
 └── sessions/         session state, transcripts, and per-session backlogs
 ```
 
-There are no built-in roles. Create only the workers your project needs. From the REPL:
+On first run, `orcai` creates five starter roles so you can delegate immediately:
 
 ```text
-/agent add manager anthropic opus You organize the goal and maintain the plan
-/agent add coder openai gpt-5.5-codex You implement tasks and run tests
-/agent add reviewer anthropic sonnet You review changes without editing code
+manager   organize the goal and choose the next task
+coder     implement changes and run tests
+tester    verify behavior and reproduce failures
+devops    handle CI, releases, deployment, and operations
+designer  shape user-facing flows, copy, and visual direction
 ```
 
 The provider determines the native CLI: `anthropic` uses Claude Code and `openai` uses Codex.
-The roles are saved to `agents.yaml`. Each session has its own shared backlog at
+The roles are saved to `agents.yaml`; edit that file or use `/agent add` and `/agent rm` to
+customize the team. Each session has its own shared backlog at
 `~/.orcai/sessions/<session>/backlog.md`; roles still run in the selected project directory
 and receive the session directory as an additional writable directory.
 
@@ -81,8 +84,7 @@ If a CLI is not available in `PATH`, put its absolute path in `config.json`:
 
 The home screen keeps the important context visible: session name, project directory, number
 of configured roles, active conversations, latest activity, and the currently selected role.
-When no roles exist yet, it shows the exact `/agent add` command needed to create the first
-worker. At startup, `orcai` also checks whether every CLI referenced by a role is available.
+At startup, `orcai` checks whether every CLI referenced by a role is available.
 
 You do not need to remember a command for every task:
 

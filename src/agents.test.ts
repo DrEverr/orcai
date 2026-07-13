@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { serializeAgents, deserializeAgents, makeAgent } from "./agents.ts";
+import { serializeAgents, deserializeAgents, makeAgent, DEFAULT_AGENTS } from "./agents.ts";
 import type { Agent } from "./types.ts";
 
 test("YAML roundtrip preserves roles, including tricky backstory", () => {
@@ -28,4 +28,17 @@ test("deserializeAgents derives cli from provider when omitted", () => {
 test("deserializeAgents skips invalid entries", () => {
   const agents = deserializeAgents(`- id: ok\n  provider: openai\n  model: m\n- provider: openai\n  model: m\n`);
   expect(agents.map((a) => a.id)).toEqual(["ok"]);
+});
+
+test("default agents provide the starter roles", () => {
+  expect(DEFAULT_AGENTS.map((a) => a.id)).toEqual([
+    "manager",
+    "coder",
+    "tester",
+    "devops",
+    "designer",
+  ]);
+  expect(DEFAULT_AGENTS.every((a) => a.backstory.length > 20)).toBe(true);
+  expect(DEFAULT_AGENTS.find((a) => a.id === "manager")?.cli).toBe("claude");
+  expect(DEFAULT_AGENTS.find((a) => a.id === "coder")?.cli).toBe("codex");
 });

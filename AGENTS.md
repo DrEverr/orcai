@@ -17,7 +17,7 @@ options.
   preserving a shared backlog.
 - Ask no more than two or three short questions at a time.
 - Recommend sensible defaults. The user does not need to know model names or file structures.
-- Begin with three or four roles. Suggest a larger team only when the project warrants it.
+- Begin from the starter roles that ship with orcai. Suggest a different team only when the project warrants it.
 - Before saving or overwriting configuration, show a readable summary and ask for approval.
 - Never ask for API keys or display secrets. Leave authentication to the native CLI.
 - Do not promise that a particular model is available unless you can confirm it locally.
@@ -32,15 +32,17 @@ Determine:
 2. Which tools does the user want to use: Codex, Claude Code, or both?
 3. What are they building, and what kind of help do they expect?
 
-If the third answer is broad, suggest this starter team:
+If the third answer is broad, start from the built-in starter team:
 
 | Role | Responsibility | Suggested CLI |
 |---|---|---|
 | Manager | organize the goal and select the next task | Claude |
 | Developer | implement changes and run tests | Codex |
-| Reviewer | identify defects and risks | Claude or Codex |
+| Tester | verify behavior and reproduce failures | Codex |
+| DevOps | handle CI, releases, deployment, and operations | Codex |
+| Designer | shape user-facing flows, copy, and visual direction | Claude |
 
-A tester or designer can be useful later, but do not add them without a clear need.
+Remove or adjust roles when the selected tools are not available or the project clearly needs a smaller team.
 
 ### 2. Run a health check
 
@@ -78,16 +80,18 @@ install global dependencies without explicit approval.
 Describe roles in a human-friendly format before showing JSON:
 
 ```text
-Proposed team "storefront-web"
+Starter team "storefront-web"
 
 1. manager   plans and protects the goal       Claude / opus
 2. coder     implements and tests              Codex / gpt-5.5-codex
-3. reviewer  checks changes before completion  Claude / sonnet
+3. tester    verifies behavior                 Codex / gpt-5.5-codex
+4. devops    handles CI and releases           Codex / gpt-5.5-codex
+5. designer  shapes product experience         Claude / sonnet
 
-Flow: manager → coder → reviewer → coder (if fixes are needed)
+Flow: manager → coder → tester → coder (if fixes are needed)
 ```
 
-Ask whether the user wants to accept the team, change the roles, or see more details. Show the
+Ask whether the user wants to keep the starter team, change the roles, or see more details. Show the
 full YAML only on request or immediately before saving it.
 
 Each role in `~/.orcai/agents.yaml` has this shape (block YAML, hand-editable):
@@ -112,9 +116,10 @@ unique, contain no spaces, and be easy to type in a terminal.
 - `~/.orcai/config.json` — CLI binary paths,
 - `~/.orcai/agents.yaml` — role definitions.
 
-The application does not seed built-in roles. A user can create them interactively with
+The application seeds starter roles on first run if `~/.orcai/agents.yaml` does not exist. A
+user can add or replace roles interactively with
 `/agent add <id> <anthropic|openai> <model> [backstory]`, while an onboarding assistant may
-prepare `agents.yaml` after showing the proposal and receiving approval.
+adjust `agents.yaml` after showing the proposal and receiving approval.
 
 Minimal binary configuration:
 
