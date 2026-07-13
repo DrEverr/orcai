@@ -23,7 +23,7 @@ import {
 } from "./ui.ts";
 import type { Agent, Config, SessionData } from "./types.ts";
 
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 
 const COMMANDS: { name: string; desc: string }[] = [
   { name: "/session", desc: "Manage sessions" },

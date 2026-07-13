@@ -43,7 +43,7 @@ test("table aligns columns", () => {
 });
 
 test("card expands frame to fit long session and path values", () => {
-  const out = card("orcai 0.2.0", [
+  const out = card("orcai 0.2.1", [
     {
       left: "Session   123e4567-e89b-12d3-a456-426614174000",
       right: "/Users/stas/Development/orcai/packages/a-very-long-project-path",
