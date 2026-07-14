@@ -413,6 +413,14 @@ export async function repl(initialSession?: string): Promise<void> {
   }
 
   const rl = createInterface({ input: stdin, output: stdout, completer });
+  let closing = false;
+  const closeRepl = (): void => {
+    if (closing) return;
+    closing = true;
+    rl.close();
+  };
+  rl.on("SIGINT", closeRepl);
+  process.once("SIGINT", closeRepl);
 
   // Shift+Tab cycles the active role (Tab stays for completion).
   if (stdin.isTTY) {
@@ -443,6 +451,12 @@ export async function repl(initialSession?: string): Promise<void> {
     rl.setPrompt(promptStr());
     rl.prompt();
   }
-  rl.close();
-  log("\n" + style.gray("Goodbye."));
+  process.removeListener("SIGINT", closeRepl);
+  closeRepl();
+  if (session) {
+    log("\n" + style.gray("To continue this session, run ") + style.cyan(`orcai resume ${session.name}`));
+  } else {
+    log("");
+  }
+  log(style.gray("Goodbye."));
 }

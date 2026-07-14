@@ -1,6 +1,6 @@
 {
   "name": "@heyimstas/orcai",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Human-driven orchestrator for role-based AI CLIs (claude, codex).",
   "module": "src/index.ts",
   "type": "module",
