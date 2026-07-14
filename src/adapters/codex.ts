@@ -75,6 +75,14 @@ async function readSessions(): Promise<IndexEntry[]> {
 export const codexAdapter: CliAdapter = {
   preassignsSessionId: false,
 
+  async resumable(sessionId) {
+    try {
+      return (await readSessions()).some((s) => s.id === sessionId);
+    } catch {
+      return true;
+    }
+  },
+
   buildArgs({ model, sessionId, isNew, backstory, sessionDir, prompt, attachments, extraFlags }) {
     const imageArgs = attachments.flatMap((a) => ["-i", a.path]);
     if (isNew) {

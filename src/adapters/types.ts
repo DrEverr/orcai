@@ -17,6 +17,11 @@ export interface BuildArgsInput {
 export interface CliAdapter {
   /** Whether we can assign the session UUID ourselves before the first launch. */
   preassignsSessionId: boolean;
+  /**
+   * Check whether a previously saved native CLI session still exists.
+   * Return false only when the backing store was readable and the id is absent.
+   */
+  resumable?(sessionId: string, cwd: string): Promise<boolean>;
   /** Build the argv (excluding the binary) for a launch/resume. */
   buildArgs(input: BuildArgsInput): string[];
   /**

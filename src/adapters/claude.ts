@@ -1,3 +1,5 @@
+import { stat } from "node:fs/promises";
+import { CLAUDE_PROJECTS_DIR } from "../paths.ts";
 import type { CliAdapter } from "./types.ts";
 
 /**
@@ -10,6 +12,19 @@ import type { CliAdapter } from "./types.ts";
  */
 export const claudeAdapter: CliAdapter = {
   preassignsSessionId: true,
+
+  async resumable(sessionId) {
+    try {
+      const projects = await stat(CLAUDE_PROJECTS_DIR);
+      if (!projects.isDirectory()) return false;
+      const glob = new Bun.Glob(`**/${sessionId}.jsonl`);
+      for await (const _ of glob.scan({ cwd: CLAUDE_PROJECTS_DIR })) return true;
+      return false;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return false;
+      return true;
+    }
+  },
 
   buildArgs({ model, sessionId, isNew, backstory, sessionDir, prompt, attachments, extraFlags }) {
     const args: string[] = [];

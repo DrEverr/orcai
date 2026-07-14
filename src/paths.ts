@@ -37,3 +37,6 @@ export function isInsideSessions(name: string): boolean {
 export const CODEX_HOME = join(homedir(), ".codex");
 export const CODEX_SESSION_INDEX = join(CODEX_HOME, "session_index.jsonl");
 export const CODEX_SESSIONS_DIR = join(CODEX_HOME, "sessions");
+
+/** Claude Code stores project-scoped session transcripts here. */
+export const CLAUDE_PROJECTS_DIR = join(homedir(), ".claude", "projects");

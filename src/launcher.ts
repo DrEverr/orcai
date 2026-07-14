@@ -19,6 +19,7 @@ export interface DelegateResult {
   exitCode: number;
   sessionSaved: boolean;
   autoCaptured: boolean;
+  sessionReset: boolean;
 }
 
 function missingBacklogEntry(agent: Agent, exitCode: number, sessionSaved: boolean): string {
@@ -62,13 +63,23 @@ export async function delegate(
   const backlogFile = `${dir}/backlog.md`;
 
   let sessionId = state.cliSessionId;
-  if (isNew && adapter.preassignsSessionId) sessionId = crypto.randomUUID();
+  let effectiveIsNew = isNew;
+  let sessionReset = false;
+  if (!effectiveIsNew && sessionId && adapter.resumable) {
+    const canResume = await adapter.resumable(sessionId, session.workdir);
+    if (!canResume) {
+      sessionReset = true;
+      effectiveIsNew = true;
+      sessionId = null;
+    }
+  }
+  if (effectiveIsNew && adapter.preassignsSessionId) sessionId = crypto.randomUUID();
 
   const bin = agent.bin ?? config.clis[agent.cli];
   const args = adapter.buildArgs({
     model: agent.model,
     sessionId,
-    isNew,
+    isNew: effectiveIsNew,
     backstory: agent.backstory,
     sessionDir: dir,
     prompt: userText + footer(backlogFile),
@@ -77,7 +88,7 @@ export async function delegate(
   });
 
   const marker = await backlogMarker(session.name);
-  const snapshot = isNew && adapter.snapshot ? await adapter.snapshot() : undefined;
+  const snapshot = effectiveIsNew && adapter.snapshot ? await adapter.snapshot() : undefined;
   const startedAt = Date.now();
   await appendTranscript(
     session.name,
@@ -92,13 +103,13 @@ export async function delegate(
   const succeeded = exitCode === 0;
 
   // Capture the session id for CLIs that generate their own (codex).
-  if (succeeded && isNew && !adapter.preassignsSessionId && adapter.captureSessionId) {
+  if (succeeded && effectiveIsNew && !adapter.preassignsSessionId && adapter.captureSessionId) {
     sessionId = await adapter.captureSessionId(snapshot, startedAt, session.workdir);
   }
 
   let output = await backlogSince(session.name, marker);
   let autoCaptured = false;
-  const sessionSaved = !isNew || (succeeded && sessionId !== null);
+  const sessionSaved = !effectiveIsNew || (succeeded && sessionId !== null);
   if (!output) {
     const fallback = missingBacklogEntry(agent, exitCode, sessionSaved);
     await appendBacklog(session.name, "orcai", fallback);
@@ -115,10 +126,12 @@ export async function delegate(
   await saveSession(session);
   await appendTranscript(
     session.name,
-    `← [${agent.id}] finished (exit ${exitCode}${sessionSaved ? "" : ", session not saved"}), ${
+    `← [${agent.id}] finished (exit ${exitCode}${sessionReset ? ", session renewed" : ""}${
+      sessionSaved ? "" : ", session not saved"
+    }), ${
       output ? output.length + " chars in backlog" : "no entry"
     }`,
   );
 
-  return { output, exitCode, sessionSaved, autoCaptured };
+  return { output, exitCode, sessionSaved, autoCaptured, sessionReset };
 }

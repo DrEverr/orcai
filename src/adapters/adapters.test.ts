@@ -122,3 +122,46 @@ test("codex captures a new session id from rollout files when the index is stale
     await rm(workdir, { recursive: true, force: true });
   }
 });
+
+test("codex resumable reports present and absent session ids", async () => {
+  const home = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "orcai-codex-home-"));
+  const workdir = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "orcai-codex-workdir-"));
+  try {
+    const sessionsDir = join(home, ".codex", "sessions", "2026", "07", "14");
+    await mkdir(sessionsDir, { recursive: true });
+    await Bun.write(
+      join(sessionsDir, "rollout-2026-07-14T12-00-00-present-session.jsonl"),
+      JSON.stringify({
+        timestamp: "2026-07-14T12:00:00.000Z",
+        type: "session_meta",
+        payload: { session_id: "present-session", timestamp: "2026-07-14T12:00:00.000Z", cwd: workdir },
+      }) + "\n",
+    );
+
+    const adapterModule = new URL("./codex.ts", import.meta.url).href;
+    const script = `
+      const { codexAdapter } = await import(${JSON.stringify(adapterModule)});
+      const present = await codexAdapter.resumable("present-session", ${JSON.stringify(workdir)});
+      const absent = await codexAdapter.resumable("absent-session", ${JSON.stringify(workdir)});
+      console.log(JSON.stringify({ present, absent }));
+    `;
+    const proc = Bun.spawn({
+      cmd: [process.execPath, "--eval", script],
+      env: { ...process.env, HOME: home },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+
+    expect(stderr).toBe("");
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(stdout)).toEqual({ present: true, absent: false });
+  } finally {
+    await rm(home, { recursive: true, force: true });
+    await rm(workdir, { recursive: true, force: true });
+  }
+});

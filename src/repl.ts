@@ -255,6 +255,9 @@ export async function repl(initialSession?: string): Promise<void> {
     consumeAttachments(attachments);
 
     const dur = style.gray(`   ${fmtDuration(Date.now() - start)}`);
+    if (res.sessionReset) {
+      log(style.gray("  Saved CLI session was gone; started a new conversation."));
+    }
     if (res.exitCode === 0) log(style.green(`✓ @${agent.id} finished`) + dur);
     else {
       const interrupted = res.exitCode === 130 || res.exitCode === 143;
