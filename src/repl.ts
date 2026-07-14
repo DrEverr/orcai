@@ -2,6 +2,7 @@ import { createInterface } from "node:readline/promises";
 import { emitKeypressEvents } from "node:readline";
 import { stdin, stdout } from "node:process";
 import { homedir } from "node:os";
+import { mkdir } from "node:fs/promises";
 import { loadConfig } from "./config.ts";
 import { loadAgents, saveAgents, findAgent, makeAgent, isProvider } from "./agents.ts";
 import {
@@ -10,7 +11,9 @@ import {
   listSessions,
   sessionExists,
 } from "./session.ts";
+import { attachmentsDir } from "./paths.ts";
 import { appendBacklog, appendTranscript, readBacklog } from "./backlog.ts";
+import { readClipboardImage } from "./clipboard.ts";
 import { checkBinaries } from "./doctor.ts";
 import { delegate } from "./launcher.ts";
 import {
@@ -22,8 +25,9 @@ import {
   table,
 } from "./ui.ts";
 import type { Agent, Config, SessionData } from "./types.ts";
+import type { ImageAttachment } from "./adapters/types.ts";
 
-const VERSION = "0.2.1";
+const VERSION = "0.2.2";
 
 const COMMANDS: { name: string; desc: string }[] = [
   { name: "/session", desc: "Manage sessions" },
@@ -32,6 +36,7 @@ const COMMANDS: { name: string; desc: string }[] = [
   { name: "/role", desc: "Change the active role (or Shift+Tab)" },
   { name: "/to", desc: "Delegate a task to a role (/to <role> <text>)" },
   { name: "/pass", desc: "Pass the latest result to another role" },
+  { name: "/paste", desc: "Attach clipboard image as [Image #N]" },
   { name: "/backlog", desc: "Show the shared backlog" },
   { name: "/last", desc: "Show the latest result" },
   { name: "/note", desc: "Add your own note" },
@@ -54,12 +59,66 @@ export async function repl(initialSession?: string): Promise<void> {
   const agents: Agent[] = await loadAgents();
   let session: SessionData | null = initialSession ? await loadSession(initialSession) : null;
   let activeRoleId = findAgent(agents, "manager")?.id ?? agents[0]?.id ?? "";
+  let pendingAttachments: ImageAttachment[] = [];
+  let queuedInput = "";
+  let pasteInFlight = false;
 
   const activeAgent = (): Agent | undefined => findAgent(agents, activeRoleId);
   const promptStr = (): string => {
     const a = activeAgent();
     return `${style.cyan("@" + (a?.id ?? "-"))} ${style.dim(a ? `${a.cli}/${a.model}` : "")} ${style.gray("›")} `;
   };
+
+  function clearPendingAttachments(): void {
+    pendingAttachments = [];
+  }
+
+  function attachmentsForText(text: string): ImageAttachment[] {
+    const byToken = new Map(pendingAttachments.map((a) => [a.token, a]));
+    const out: ImageAttachment[] = [];
+    for (const match of text.matchAll(/\[Image #\d+\]/g)) {
+      const attachment = byToken.get(match[0]);
+      if (attachment) out.push(attachment);
+    }
+    return out;
+  }
+
+  function consumeAttachments(attachments: ImageAttachment[]): void {
+    if (!attachments.length) return;
+    const used = new Set(attachments.map((a) => a.token));
+    pendingAttachments = pendingAttachments.filter((a) => !used.has(a.token));
+  }
+
+  function commandLineWithoutQueuedImages(line: string): string {
+    const stripped = line.replace(/^(\[Image #\d+\]\s*)+/, "");
+    return stripped.startsWith("/") ? stripped : line;
+  }
+
+  async function pasteClipboardImage(insert: (token: string) => void): Promise<void> {
+    if (pasteInFlight) return;
+    pasteInFlight = true;
+    try {
+      if (!session) {
+        log(style.yellow("No active session."));
+        return;
+      }
+      const image = await readClipboardImage();
+      if (!image.bytes) {
+        log(style.yellow(image.hint ?? "Clipboard does not contain a PNG image."));
+        return;
+      }
+
+      const dir = attachmentsDir(session.name);
+      await mkdir(dir, { recursive: true });
+      const token = `[Image #${pendingAttachments.length + 1}]`;
+      const path = `${dir}/pasted-${Date.now()}-${pendingAttachments.length + 1}.png`;
+      await Bun.write(path, image.bytes);
+      pendingAttachments.push({ token, path });
+      insert(token);
+    } finally {
+      pasteInFlight = false;
+    }
+  }
 
   // ---- rendering -----------------------------------------------------------
   function renderHome(): void {
@@ -162,19 +221,21 @@ export async function repl(initialSession?: string): Promise<void> {
 
   async function runDelegate(agent: Agent, text: string): Promise<void> {
     if (!session) return log(style.yellow("No active session. /session new <name> [workdir]"));
+    const attachments = attachmentsForText(text);
     const bin = agent.bin ?? config.clis[agent.cli];
     const wasNew = !session.roles[agent.id]?.cliSessionId;
 
     log("");
     log(style.cyan(`● Starting @${agent.id}`));
     log(style.dim(`  ${agent.cli} · ${agent.model} · ${wasNew ? "new conversation" : "resuming session"}`));
+    if (attachments.length) log(style.dim(`  ${attachments.length} image attachment${attachments.length === 1 ? "" : "s"}`));
     log("");
 
     const start = Date.now();
     suspend();
     let res: Awaited<ReturnType<typeof delegate>>;
     try {
-      res = await delegate(session, agent, config, text);
+      res = await delegate(session, agent, config, text, attachments);
     } catch (err) {
       resume();
       const e = err as NodeJS.ErrnoException;
@@ -191,6 +252,7 @@ export async function repl(initialSession?: string): Promise<void> {
       return;
     }
     resume();
+    consumeAttachments(attachments);
 
     const dur = style.gray(`   ${fmtDuration(Date.now() - start)}`);
     if (res.exitCode === 0) log(style.green(`✓ @${agent.id} finished`) + dur);
@@ -298,6 +360,7 @@ export async function repl(initialSession?: string): Promise<void> {
           const workdir = wd.join(" ") || process.cwd();
           try {
             session = await createSession(name, workdir);
+            clearPendingAttachments();
             log(style.green(`✓ Created session "${name}"`) + style.gray(`  ${shortPath(workdir)}`));
             renderHome();
           } catch (e) {
@@ -307,6 +370,7 @@ export async function repl(initialSession?: string): Promise<void> {
           if (!name || !(await sessionExists(name)))
             return (log(style.yellow(`Session "${name}" does not exist.`)), true);
           session = await loadSession(name);
+          clearPendingAttachments();
           log(style.green(`✓ Opened session "${name}"`));
           renderHome();
         } else renderHelp("/session");
@@ -330,6 +394,19 @@ export async function repl(initialSession?: string): Promise<void> {
         if (!session?.lastOutput) return (log(style.yellow("There is no latest result to pass on.")), true);
         const last = session.lastOutput;
         await runDelegate(agent, `The previous role [${last.roleId}] passed this on:\n\n${last.text}`);
+        return true;
+      }
+
+      case "/paste": {
+        const [sub] = rest;
+        if (sub === "clear") {
+          clearPendingAttachments();
+          log(style.green("✓ Cleared pending attachments"));
+          return true;
+        }
+        await pasteClipboardImage((token) => {
+          queuedInput += token;
+        });
         return true;
       }
 
@@ -361,8 +438,11 @@ export async function repl(initialSession?: string): Promise<void> {
   }
 
   async function handle(line: string): Promise<boolean> {
-    const t = line.trim();
-    if (!t) return true;
+    const t = commandLineWithoutQueuedImages(line.trim());
+    if (!t) {
+      clearPendingAttachments();
+      return true;
+    }
 
     if (t.startsWith("@")) {
       const sp = t.indexOf(" ");
@@ -404,6 +484,11 @@ export async function repl(initialSession?: string): Promise<void> {
       const hits = subs.filter((s) => s.startsWith(line));
       return [hits.length ? hits : subs, line];
     }
+    if (line.startsWith("/paste ")) {
+      const subs = ["/paste clear"];
+      const hits = subs.filter((s) => s.startsWith(line));
+      return [hits.length ? hits : subs, line];
+    }
     if (line.startsWith("/")) {
       const opts = COMMANDS.map((c) => c.name);
       const hits = opts.filter((o) => o.startsWith(line));
@@ -430,6 +515,10 @@ export async function repl(initialSession?: string): Promise<void> {
         cycleRole(1);
         rl.setPrompt(promptStr());
         rl.prompt(true);
+      } else if (key?.name === "v" && key.ctrl) {
+        void pasteClipboardImage((token) => {
+          rl.write(token);
+        });
       }
     });
   }
@@ -450,6 +539,10 @@ export async function repl(initialSession?: string): Promise<void> {
     if (!keepGoing) break;
     rl.setPrompt(promptStr());
     rl.prompt();
+    if (queuedInput) {
+      rl.write(queuedInput);
+      queuedInput = "";
+    }
   }
   process.removeListener("SIGINT", closeRepl);
   closeRepl();

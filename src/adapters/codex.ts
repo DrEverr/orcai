@@ -75,13 +75,14 @@ async function readSessions(): Promise<IndexEntry[]> {
 export const codexAdapter: CliAdapter = {
   preassignsSessionId: false,
 
-  buildArgs({ model, sessionId, isNew, backstory, sessionDir, prompt, extraFlags }) {
+  buildArgs({ model, sessionId, isNew, backstory, sessionDir, prompt, attachments, extraFlags }) {
+    const imageArgs = attachments.flatMap((a) => ["-i", a.path]);
     if (isNew) {
       const seeded = `${backstory}\n\n---\n\n${prompt}`;
-      return ["-m", model, "--add-dir", sessionDir, ...extraFlags, "--", seeded];
+      return ["-m", model, "--add-dir", sessionDir, ...imageArgs, ...extraFlags, "--", seeded];
     }
     // `codex resume` accepts -m, so a changed model in agents.yaml still applies.
-    return ["resume", "-m", model, sessionId!, "--add-dir", sessionDir, ...extraFlags, "--", prompt];
+    return ["resume", "-m", model, sessionId!, "--add-dir", sessionDir, ...imageArgs, ...extraFlags, "--", prompt];
   },
 
   async snapshot() {

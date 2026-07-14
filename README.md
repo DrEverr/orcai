@@ -9,6 +9,8 @@ and a session-scoped `backlog.md` for the whole team.
 You remain in control: choose a role, give it a task, review the result, and decide who should
 continue. `orcai` does not run an autonomous team in the background.
 
+`orcai` targets macOS and Linux terminals. On Windows, run it through WSL.
+
 ## Quick start with AI — recommended
 
 Open this project in your coding assistant and say:
@@ -32,6 +34,9 @@ You need:
 
 - [Bun](https://bun.sh) 1.3 or newer,
 - Codex CLI, Claude Code, or both, with authentication already configured.
+
+`orcai` is tested and targeted for macOS and Linux. Windows users should install and run it
+inside WSL, where it follows the Linux behavior.
 
 ```bash
 bun install
@@ -146,6 +151,30 @@ Every launched Codex or Claude Code session remains interactive. Handle permissi
 and clarifying questions in its native interface. When it closes, you return to `orcai`
 with the same active session and role context.
 
+## Image paste
+
+Attach an image from your system clipboard with:
+
+```text
+/paste
+```
+
+`orcai` saves the PNG under the active session and inserts a placeholder such as
+`[Image #1]` into the prompt. You can also press `Ctrl+V` in terminals that pass the keypress
+through to `orcai`. If your terminal captures `Ctrl+V`, use `/paste`.
+
+Pending image placeholders are mapped to the saved files when you send the task. Codex
+receives them as image arguments; Claude Code receives the placeholder-to-file mapping in the
+prompt. Clear pending images without sending them:
+
+```text
+/paste clear
+```
+
+On macOS, image paste works through the system `osascript` helper, with `pngpaste` used when
+it is already installed. Linux and WSL need `wl-paste` or `xclip`. Inside a launched native
+Codex or Claude Code session, use that CLI's own image paste support.
+
 ## Essential commands and shortcuts
 
 | Input | Action |
@@ -159,6 +188,8 @@ with the same active session and role context.
 | `/agent rm <id>` | remove a role |
 | `/agent list` or `/agents` | show roles, models, and their status |
 | `/pass <role>` | pass the latest result to another role |
+| `/paste` | attach clipboard image as `[Image #N]` |
+| `/paste clear` | clear pending image attachments |
 | `/last` | show the latest captured result |
 | `/backlog` | show the team's shared context |
 | `/home` | show the dashboard again |

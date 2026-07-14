@@ -1,3 +1,8 @@
+export interface ImageAttachment {
+  token: string;
+  path: string;
+}
+
 export interface BuildArgsInput {
   model: string;
   sessionId: string | null;
@@ -5,6 +10,7 @@ export interface BuildArgsInput {
   backstory: string;
   sessionDir: string;
   prompt: string;
+  attachments: ImageAttachment[];
   extraFlags: string[];
 }
 

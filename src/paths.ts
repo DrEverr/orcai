@@ -22,6 +22,10 @@ export function backlogPath(name: string): string {
   return join(sessionDir(name), "backlog.md");
 }
 
+export function attachmentsDir(name: string): string {
+  return join(sessionDir(name), "attachments");
+}
+
 /** Guard against path traversal: resolved session dir must stay under SESSIONS_DIR. */
 export function isInsideSessions(name: string): boolean {
   const base = resolve(SESSIONS_DIR);

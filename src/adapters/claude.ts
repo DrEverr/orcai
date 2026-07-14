@@ -11,8 +11,11 @@ import type { CliAdapter } from "./types.ts";
 export const claudeAdapter: CliAdapter = {
   preassignsSessionId: true,
 
-  buildArgs({ model, sessionId, isNew, backstory, sessionDir, prompt, extraFlags }) {
+  buildArgs({ model, sessionId, isNew, backstory, sessionDir, prompt, attachments, extraFlags }) {
     const args: string[] = [];
+    const promptWithAttachments = attachments.length
+      ? `${prompt}\n\nAttached images:\n${attachments.map((a) => `${a.token}: ${a.path}`).join("\n")}`
+      : prompt;
     if (isNew) {
       args.push("--session-id", sessionId!);
       args.push("--append-system-prompt", backstory);
@@ -24,7 +27,7 @@ export const claudeAdapter: CliAdapter = {
     args.push(...extraFlags);
     // --add-dir is variadic in Claude Code. Without an option terminator, the
     // initial prompt is consumed as another directory and never reaches Claude.
-    args.push("--", prompt);
+    args.push("--", promptWithAttachments);
     return args;
   },
 };

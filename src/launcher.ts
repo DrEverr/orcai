@@ -3,6 +3,7 @@ import { sessionDir } from "./paths.ts";
 import { roleState, saveSession } from "./session.ts";
 import { appendBacklog, backlogMarker, backlogSince, appendTranscript } from "./backlog.ts";
 import type { Agent, Config, SessionData } from "./types.ts";
+import type { ImageAttachment } from "./adapters/types.ts";
 
 function footer(backlogFile: string): string {
   return (
@@ -52,6 +53,7 @@ export async function delegate(
   agent: Agent,
   config: Config,
   userText: string,
+  attachments: ImageAttachment[] = [],
 ): Promise<DelegateResult> {
   const adapter = getAdapter(agent.cli);
   const state = roleState(session, agent);
@@ -70,6 +72,7 @@ export async function delegate(
     backstory: agent.backstory,
     sessionDir: dir,
     prompt: userText + footer(backlogFile),
+    attachments,
     extraFlags: agent.extraFlags ?? [],
   });
 

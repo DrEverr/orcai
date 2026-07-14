@@ -9,6 +9,7 @@ const base = {
   backstory: "BS",
   sessionDir: "/s",
   prompt: "P",
+  attachments: [],
   extraFlags: [] as string[],
 };
 
@@ -29,6 +30,16 @@ test("claude resume: --resume, no backstory re-injection", () => {
   expect(args).not.toContain("--append-system-prompt");
 });
 
+test("claude includes image attachment paths in the prompt", () => {
+  const args = claudeAdapter.buildArgs({
+    ...base,
+    sessionId: "u1",
+    isNew: false,
+    attachments: [{ token: "[Image #1]", path: "/s/attachments/pasted-1.png" }],
+  });
+  expect(args.at(-1)).toBe("P\n\nAttached images:\n[Image #1]: /s/attachments/pasted-1.png");
+});
+
 test("claude preassigns its own session id", () => {
   expect(claudeAdapter.preassignsSessionId).toBe(true);
 });
@@ -41,6 +52,21 @@ test("codex new: -m + backstory prepended to prompt", () => {
 test("codex resume: resume subcommand passes -m so model changes apply", () => {
   const args = codexAdapter.buildArgs({ ...base, sessionId: "u9", isNew: false });
   expect(args).toEqual(["resume", "-m", "m", "u9", "--add-dir", "/s", "--", "P"]);
+});
+
+test("codex passes image attachments with -i", () => {
+  const args = codexAdapter.buildArgs({
+    ...base,
+    sessionId: "u9",
+    isNew: false,
+    attachments: [{ token: "[Image #1]", path: "/s/attachments/pasted-1.png" }],
+  });
+  expect(args).toEqual([
+    "resume", "-m", "m", "u9",
+    "--add-dir", "/s",
+    "-i", "/s/attachments/pasted-1.png",
+    "--", "P",
+  ]);
 });
 
 test("codex must snapshot + capture its own session id", () => {
