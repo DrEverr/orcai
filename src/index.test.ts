@@ -1,6 +1,7 @@
 import { afterAll, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
+import packageJson from "../package.json";
 
 const tempDirs: string[] = [];
 afterAll(async () => {
@@ -19,6 +20,60 @@ async function waitForStartupSession(home: string): Promise<string> {
   }
   throw new Error("Timed out waiting for startup session");
 }
+
+async function runCli(args: string[], home: string, cwd: string) {
+  const indexFile = new URL("./index.ts", import.meta.url).pathname;
+  const proc = Bun.spawn({
+    cmd: [process.execPath, indexFile, ...args],
+    cwd,
+    env: { ...process.env, HOME: home },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  return { stdout, stderr, exitCode };
+}
+
+test("version flags print package version without creating a session", async () => {
+  const home = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "orcai-home-"));
+  const workdir = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "orcai-workdir-"));
+  tempDirs.push(home, workdir);
+
+  for (const flag of ["--version", "-V", "version"]) {
+    const { stdout, stderr, exitCode } = await runCli([flag], home, workdir);
+
+    expect(stderr).toBe("");
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toBe(packageJson.version);
+  }
+  expect(await Bun.file(join(home, ".orcai", "sessions")).exists()).toBe(false);
+});
+
+test("help flags print usage without creating a session", async () => {
+  const home = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "orcai-home-"));
+  const workdir = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "orcai-workdir-"));
+  tempDirs.push(home, workdir);
+
+  for (const args of [
+    ["--help"],
+    ["-h"],
+    ["help"],
+    ["new", "--help"],
+    ["resume", "-h"],
+    ["list", "help"],
+  ]) {
+    const { stdout, stderr, exitCode } = await runCli(args, home, workdir);
+
+    expect(stderr).toBe("");
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Usage:");
+  }
+  expect(await Bun.file(join(home, ".orcai", "sessions")).exists()).toBe(false);
+});
 
 test("startup validates config before creating session files", async () => {
   const home = await mkdtemp(join(process.env.TMPDIR ?? "/tmp", "orcai-home-"));

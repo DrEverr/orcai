@@ -202,6 +202,16 @@ Resume a session later with:
 orcai resume <uuid>
 ```
 
+Useful CLI flags:
+
+```bash
+orcai --help
+orcai --version
+orcai new --help
+orcai resume --help
+orcai list --help
+```
+
 ## Conversation continuity
 
 Every role has its own session in the native CLI. Claude Code starts with an assigned session
