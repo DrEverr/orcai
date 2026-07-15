@@ -27,7 +27,7 @@ import {
 import type { Agent, Config, SessionData } from "./types.ts";
 import type { ImageAttachment } from "./adapters/types.ts";
 
-const VERSION = "0.2.2";
+const VERSION = "0.2.5";
 
 const COMMANDS: { name: string; desc: string }[] = [
   { name: "/session", desc: "Manage sessions" },
