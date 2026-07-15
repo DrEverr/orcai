@@ -37,7 +37,42 @@ test("claude includes image attachment paths in the prompt", () => {
     isNew: false,
     attachments: [{ token: "[Image #1]", path: "/s/attachments/pasted-1.png" }],
   });
-  expect(args.at(-1)).toBe("P\n\nAttached images:\n[Image #1]: /s/attachments/pasted-1.png");
+  expect(args.at(-1)).toBe("P\n\nAttached images:\n[Image #1]: @/s/attachments/pasted-1.png");
+});
+
+test("claude replaces image tokens embedded in the prompt", () => {
+  const args = claudeAdapter.buildArgs({
+    ...base,
+    sessionId: "u1",
+    isNew: false,
+    prompt: "Describe [Image #1], then compare it with [Image #1].",
+    attachments: [{ token: "[Image #1]", path: "/s/attachments/pasted-1.png" }],
+  });
+  expect(args.at(-1)).toBe(
+    "Describe @/s/attachments/pasted-1.png, then compare it with @/s/attachments/pasted-1.png.",
+  );
+});
+
+test("claude appends image references whose tokens are absent from the prompt", () => {
+  const args = claudeAdapter.buildArgs({
+    ...base,
+    sessionId: "u1",
+    isNew: false,
+    prompt: "Describe the attached image.",
+    attachments: [{ token: "[Image #1]", path: "/s/attachments/pasted-1.png" }],
+  });
+  expect(args.at(-1)).toBe("Describe the attached image.\n\nAttached images:\n[Image #1]: @/s/attachments/pasted-1.png");
+});
+
+test("claude uses an explicit read instruction for image paths with spaces", () => {
+  const args = claudeAdapter.buildArgs({
+    ...base,
+    sessionId: "u1",
+    isNew: false,
+    prompt: "Describe [Image #1].",
+    attachments: [{ token: "[Image #1]", path: "/s/attachments/pasted 1.png" }],
+  });
+  expect(args.at(-1)).toBe("Describe Attached image (read this file): /s/attachments/pasted 1.png.");
 });
 
 test("claude preassigns its own session id", () => {

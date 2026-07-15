@@ -163,9 +163,10 @@ Attach an image from your system clipboard with:
 `[Image #1]` into the prompt. You can also press `Ctrl+V` in terminals that pass the keypress
 through to `orcai`. If your terminal captures `Ctrl+V`, use `/paste`.
 
-Pending image placeholders are mapped to the saved files when you send the task. Codex
-receives them as image arguments; Claude Code receives the placeholder-to-file mapping in the
-prompt. Clear pending images without sending them:
+Pending image placeholders are mapped to the saved files when you send the task. The
+`[Image #N]` token stays as the UI affordance while `orcai` builds the native CLI payload.
+Codex receives pasted images as image arguments; Claude Code receives file references in the
+prompt, so the model can read the saved image file. Clear pending images without sending them:
 
 ```text
 /paste clear

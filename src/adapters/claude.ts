@@ -1,6 +1,28 @@
 import { stat } from "node:fs/promises";
 import { CLAUDE_PROJECTS_DIR } from "../paths.ts";
-import type { CliAdapter } from "./types.ts";
+import type { CliAdapter, ImageAttachment } from "./types.ts";
+
+function claudeImageReference(attachment: ImageAttachment): string {
+  if (/\s/.test(attachment.path)) return `Attached image (read this file): ${attachment.path}`;
+  return `@${attachment.path}`;
+}
+
+function promptWithImageReferences(prompt: string, attachments: ImageAttachment[]): string {
+  let nextPrompt = prompt;
+  const footer: string[] = [];
+
+  for (const attachment of attachments) {
+    const reference = claudeImageReference(attachment);
+    if (nextPrompt.includes(attachment.token)) {
+      nextPrompt = nextPrompt.split(attachment.token).join(reference);
+    } else {
+      footer.push(`${attachment.token}: ${reference}`);
+    }
+  }
+
+  if (!footer.length) return nextPrompt;
+  return `${nextPrompt}\n\nAttached images:\n${footer.join("\n")}`;
+}
 
 /**
  * Claude Code adapter. Runs interactively (no --print) so the user handles
@@ -28,9 +50,7 @@ export const claudeAdapter: CliAdapter = {
 
   buildArgs({ model, sessionId, isNew, backstory, sessionDir, prompt, attachments, extraFlags }) {
     const args: string[] = [];
-    const promptWithAttachments = attachments.length
-      ? `${prompt}\n\nAttached images:\n${attachments.map((a) => `${a.token}: ${a.path}`).join("\n")}`
-      : prompt;
+    const promptWithAttachments = promptWithImageReferences(prompt, attachments);
     if (isNew) {
       args.push("--session-id", sessionId!);
       args.push("--append-system-prompt", backstory);
